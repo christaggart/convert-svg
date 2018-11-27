@@ -278,8 +278,10 @@ html { background-color: ${provider.getBackgroundColor(options)}; }
 
     await writeFile(tempFile.path, html);
 
+    let pageTimeout = 30000;
+    
     if (this[_options].timeout) {
-      pageTimeout = (this[_options].timeout) ? this[_options].timeout : 30000;
+      pageTimeout = this[_options].timeout;
     }
 
     await this[_page].goto(fileUrl(tempFile.path), {timeout: pageTimeout});
