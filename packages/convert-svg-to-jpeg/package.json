@@ -1,6 +1,6 @@
 {
   "name": "convert-svg-to-jpeg",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Converts SVG to JPEG using headless Chromium",
   "homepage": "https://github.com/NotNinja/convert-svg",
   "bugs": {
