@@ -30,6 +30,8 @@ const path = require('path');
 const puppeteer = require('puppeteer');
 const tmp = require('tmp');
 const util = require('util');
+const gm = require('gm').subClass({ imageMagick: true })()
+const crypto = require('crypto');
 
 const readFile = util.promisify(fs.readFile);
 const writeFile = util.promisify(fs.writeFile);
@@ -47,7 +49,8 @@ const _provider = Symbol('provider');
 const _setDimensions = Symbol('setDimensions');
 const _tempFile = Symbol('tempFile');
 const _validate = Symbol('validate');
-
+const _calculatePageHeight = Symbol('calculatePageHeight');
+const _calculateSlices = Symbol('calculateSlices');
 /**
  * Converts SVG to another format using a headless Chromium instance.
  *
@@ -184,6 +187,18 @@ class Converter {
     }
   }
 
+  [_calculatePageHeight]() {
+    var B = document.body, H = document.documentElement, pageHeight
+
+    if (typeof document.height !== 'undefined') {
+      pageHeight = document.height // For webkit browsers
+    } else {
+      pageHeight = Math.max(B.scrollHeight, B.offsetHeight, H.clientHeight, H.scrollHeight, H.offsetHeight)
+    }
+
+    return pageHeight
+  }
+
   async [_convert](input, options) {
     input = Buffer.isBuffer(input) ? input.toString('utf8') : input;
 
@@ -191,13 +206,17 @@ class Converter {
     const start = input.indexOf('<svg');
 
     let html = `<!DOCTYPE html>
+
 <base href="${options.baseUrl}">
 <style>
 * { margin: 0; padding: 0; }
 html { background-color: ${provider.getBackgroundColor(options)}; }
-</style>`;
+</style><body>
+<div style="height:${options.height}px;width:${options.width}px">`;
+
     if (start >= 0) {
       html += input.substring(start);
+      html += '</div></body>';
     } else {
       throw new Error('SVG element open tag not found in input. Check the SVG input');
     }
@@ -211,24 +230,84 @@ html { background-color: ${provider.getBackgroundColor(options)}; }
       throw new Error('Unable to derive width and height from SVG. Consider specifying corresponding options');
     }
 
-    if (options.scale !== 1) {
-      dimensions.height *= options.scale;
-      dimensions.width *= options.scale;
 
-      await this[_setDimensions](page, dimensions);
-    }
+    const sliceHeight = 1000;
+    const viewPortHeight = 1024
 
     await page.setViewport({
-      height: Math.round(dimensions.height),
+      height: viewPortHeight,
       width: Math.round(dimensions.width)
     });
 
-    const output = await page.screenshot(Object.assign({
-      type: provider.getType(),
-      clip: Object.assign({ x: 0, y: 0 }, dimensions)
-    }, provider.getScreenshotOptions(options)));
+    const pageHeight = Math.round(dimensions.height)
+    const slices = await this[_calculateSlices](pageHeight, viewPortHeight)
+    const fileDirectory = path.dirname('/tmp/')
+    const fileName = path.basename(outputFile)
+    const tempDirectory = path.join(fileDirectory, crypto.createHash('md5').update(`${Date.now()}-${fileName}`).digest("hex"))
+
+    fs.mkdirSync(tempDirectory)
+
+    for (let index = 0; index < slices.length; index++) {
+      const slice = slices[index]
+      const slicePath = `${tempDirectory}/slice_${index}.jpg`
+
+      await page.screenshot({ path: slicePath, fullPage: false, clip: { x: 0, y: slice.y, width: Math.round(dimensions.width), height: slice.height }, type: "jpeg", quality:100})
+      gm.append(slicePath)
+    }
+       const output = await new Promise((resolve, reject) => {
+
+         gm.stream(function(err, stdout, stderr) {
+           if(err) reject(err)
+           var chunks = [];
+           stdout.on('data', function (chunk) {
+             chunks.push(chunk);
+           });
+           stdout.on('end', function () {
+             var image = Buffer.concat(chunks);
+             resolve(image);
+           });
+           stderr.on('data',function(data){
+             console.log(`stderr ${size} data:`, data);
+           })
+         })
+
+       })
+
 
     return output;
+  }
+
+
+  async [_calculateSlices](pageHeight, viewportHeight) {
+    const numberOfSlices = Math.max(1, Math.ceil(pageHeight / viewportHeight))
+    const lastSlice = numberOfSlices - 1
+    const slices = new Array(numberOfSlices)
+
+    for (let index = 0; index < slices.length; index++) {
+      const y = index * viewportHeight
+      let height = viewportHeight
+
+      if (index === lastSlice) {
+        height = pageHeight - y
+      }
+
+      slices[index] = { y: y, height: height }
+    }
+
+    return slices
+  }
+
+
+  [_calculatePageHeight]() {
+    var B = document.body, H = document.documentElement, pageHeight
+
+    if (typeof document.height !== 'undefined') {
+      pageHeight = document.height // For webkit browsers
+    } else {
+      pageHeight = Math.max(B.scrollHeight, B.offsetHeight, H.clientHeight, H.scrollHeight, H.offsetHeight)
+    }
+
+    return pageHeight
   }
 
   [_getDimensions](page) {
@@ -279,7 +358,7 @@ html { background-color: ${provider.getBackgroundColor(options)}; }
     await writeFile(tempFile.path, html);
 
     let pageTimeout = 30000;
-    
+
     if (this[_options].timeout) {
       pageTimeout = this[_options].timeout;
     }
