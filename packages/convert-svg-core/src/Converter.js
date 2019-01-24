@@ -242,7 +242,7 @@ html { background-color: ${provider.getBackgroundColor(options)}; }
     const pageHeight = Math.round(dimensions.height)
     const slices = await this[_calculateSlices](pageHeight, viewPortHeight)
     const fileDirectory = path.dirname('/tmp/')
-    const fileName = path.basename(outputFile)
+    const fileName = path.basename(options.baseUrl)
     const tempDirectory = path.join(fileDirectory, crypto.createHash('md5').update(`${Date.now()}-${fileName}`).digest("hex"))
 
     fs.mkdirSync(tempDirectory)
@@ -266,9 +266,6 @@ html { background-color: ${provider.getBackgroundColor(options)}; }
              var image = Buffer.concat(chunks);
              resolve(image);
            });
-           stderr.on('data',function(data){
-             console.log(`stderr ${size} data:`, data);
-           })
          })
 
        })
