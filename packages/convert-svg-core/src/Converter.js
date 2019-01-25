@@ -241,7 +241,7 @@ html { background-color: ${provider.getBackgroundColor(options)}; }
 
     const pageHeight = Math.round(dimensions.height)
     const slices = await this[_calculateSlices](pageHeight, viewPortHeight)
-    const fileDirectory = path.dirname('/tmp/')
+    const fileDirectory = path.dirname(options.baseUrl.replace('file:',''))
     const fileName = path.basename(options.baseUrl)
     const tempDirectory = path.join(fileDirectory, crypto.createHash('md5').update(`${Date.now()}-${fileName}`).digest("hex"))
 
