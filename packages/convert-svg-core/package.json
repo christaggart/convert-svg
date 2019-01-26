@@ -1,6 +1,6 @@
 {
   "name": "convert-svg-core",
-  "version": "0.4.0",
+  "version": "0.4.2",
   "description": "Supports converting SVG into another format using headless Chromium",
   "homepage": "https://github.com/NotNinja/convert-svg",
   "bugs": {
@@ -31,6 +31,7 @@
     "get-stdin": "^5.0.1",
     "glob": "^7.1.2",
     "lodash.omit": "^4.5.0",
+    "gm": "^1.23.1",
     "lodash.pick": "^4.4.0",
     "pollock": "^0.1.0",
     "puppeteer": "^1.0.0",
