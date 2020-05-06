@@ -230,46 +230,54 @@ html { background-color: ${provider.getBackgroundColor(options)}; }
       throw new Error('Unable to derive width and height from SVG. Consider specifying corresponding options');
     }
 
-
+    const enableSlicing = false;
     const sliceHeight = 1000;
-    const viewPortHeight = 1024
+    const viewPortHeight = (enableSlicing ? 1000 : Math.round(dimensions.height));
 
     await page.setViewport({
       height: viewPortHeight,
       width: Math.round(dimensions.width)
     });
 
-    const pageHeight = Math.round(dimensions.height)
-    const slices = await this[_calculateSlices](pageHeight, viewPortHeight)
-    const fileDirectory = path.dirname(options.baseUrl.replace('file:',''))
-    const fileName = path.basename(options.baseUrl)
-    const tempDirectory = path.join(fileDirectory, crypto.createHash('md5').update(`${Date.now()}-${fileName}`).digest("hex"))
+    var output;
+    if (enableSlicing) {
+      const pageHeight = Math.round(dimensions.height)
+      const slices = await this[_calculateSlices](pageHeight, viewPortHeight)
+      const fileDirectory = path.dirname(options.baseUrl.replace('file:', ''))
+      const fileName = path.basename(options.baseUrl)
+      const tempDirectory = path.join(fileDirectory, crypto.createHash('md5').update(`${Date.now()}-${fileName}`).digest("hex"))
 
-    fs.mkdirSync(tempDirectory)
+      fs.mkdirSync(tempDirectory)
 
-    for (let index = 0; index < slices.length; index++) {
-      const slice = slices[index]
-      const slicePath = `${tempDirectory}/slice_${index}.jpg`
+      for (let index = 0; index < slices.length; index++) {
+        const slice = slices[index]
+        const slicePath = `${tempDirectory}/slice_${index}.jpg`
 
-      await page.screenshot({ path: slicePath, fullPage: false, clip: { x: 0, y: slice.y, width: Math.round(dimensions.width), height: slice.height }, type: "jpeg", quality:100})
-      gm.append(slicePath)
+        await page.screenshot({ path: slicePath, fullPage: false, clip: { x: 0, y: slice.y, width: Math.round(dimensions.width), height: slice.height }, type: "jpeg", quality: 100 })
+        gm.append(slicePath)
+      }
+      output = await new Promise((resolve, reject) => {
+
+        gm.stream(function (err, stdout, stderr) {
+          if (err) reject(err)
+          var chunks = [];
+          stdout.on('data', function (chunk) {
+            chunks.push(chunk);
+          });
+          stdout.on('end', function () {
+            var image = Buffer.concat(chunks);
+            resolve(image);
+          });
+        })
+
+      })
+
+    } else {
+      output = await page.screenshot(Object.assign({
+        type: provider.getType(),
+        clip: Object.assign({ x: 0, y: 0 }, dimensions)
+      }, provider.getScreenshotOptions(options)));
     }
-       const output = await new Promise((resolve, reject) => {
-
-         gm.stream(function(err, stdout, stderr) {
-           if(err) reject(err)
-           var chunks = [];
-           stdout.on('data', function (chunk) {
-             chunks.push(chunk);
-           });
-           stdout.on('end', function () {
-             var image = Buffer.concat(chunks);
-             resolve(image);
-           });
-         })
-
-       })
-
 
     return output;
   }
@@ -360,7 +368,7 @@ html { background-color: ${provider.getBackgroundColor(options)}; }
       pageTimeout = this[_options].timeout;
     }
 
-    await this[_page].goto(fileUrl(tempFile.path), {timeout: pageTimeout});
+    await this[_page].goto(fileUrl(tempFile.path), { timeout: pageTimeout });
 
     return this[_page];
   }
