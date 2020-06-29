@@ -31,6 +31,11 @@ const JPEGProvider = require('../src/JPEGProvider');
 (async() => {
   const cli = new CLI(new JPEGProvider());
 
+  process.on('unhandledRejection', (e) => {
+    cli.error(`convert-svg-to-jpg failed: ${e.stack}`);
+    process.exit(1);
+  })
+  
   try {
     await cli.parse(process.argv);
   } catch (e) {
