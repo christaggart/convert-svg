@@ -1,0 +1,42 @@
+{
+  "name": "convert-svg-to-jpeg",
+  "version": "0.4.5",
+  "description": "Converts SVG to JPEG using headless Chromium",
+  "homepage": "https://github.com/christaggart/convert-svg",
+  "bugs": {
+    "url": "https://github.com/christaggart/convert-svg/issues"
+  },
+  "author": {
+    "name": "Alasdair Mercer",
+    "email": "mercer.alasdair@gmail.com",
+    "url": "https://not.ninja"
+  },
+  "license": "MIT",
+  "keywords": [
+    "convert",
+    "converter",
+    "svg",
+    "jpg",
+    "jpeg",
+    "headless",
+    "chromium"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/christaggart/convert-svg.git"
+  },
+  "dependencies": {
+    "convert-svg-core": "christaggart/convert-svg#convert-svg-core-v0.4.4-gitpkg"
+  },
+  "devDependencies": {
+    "convert-svg-test-helper": "^0.4.0",
+    "mocha": "^5.0.0"
+  },
+  "bin": {
+    "convert-svg-to-jpeg": "bin/convert-svg-to-jpeg"
+  },
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=8"
+  }
+}
